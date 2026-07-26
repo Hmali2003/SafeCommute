@@ -1,6 +1,4 @@
 import smtplib
-import socket
-
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
@@ -9,7 +7,7 @@ from app.config import settings
 
 
 SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
+SMTP_PORT = 465
 
 
 STATUS_CONTENT = {
@@ -38,8 +36,11 @@ def _build_html(
 ) -> str:
 
     comment_html = (
-        f'<p style="color:#475569;">'
-        f'<em>Manager note: "{comment}"</em></p>'
+        f"""
+        <p style="color:#475569;">
+            <em>Manager's note: "{comment}"</em>
+        </p>
+        """
         if comment
         else ""
     )
@@ -56,15 +57,15 @@ def _build_html(
             SafeCommute
         </h2>
 
-        <h3>
+        <h3 style="color:#0f172a;">
             {content["heading"]}
         </h3>
 
-        <p>
+        <p style="color:#334155;">
             Hi {employee_name},
         </p>
 
-        <p>
+        <p style="color:#334155;">
             {content["message"]}
         </p>
 
@@ -73,8 +74,9 @@ def _build_html(
         <p style="
             color:#94a3b8;
             font-size:12px;
+            margin-top:32px;
         ">
-            This is an automated email from SafeCommute.
+            This is an automated message from SafeCommute.
         </p>
 
     </div>
@@ -92,7 +94,7 @@ def send_decision_email(
 
     if not content:
         print(
-            f"[EMAIL] Unknown status {status}, skipping"
+            f"[EMAIL] Unknown status '{status}', skipping email"
         )
         return
 
@@ -108,37 +110,40 @@ def send_decision_email(
     msg["To"] = to_email
 
 
-    html = _build_html(
+    html_body = _build_html(
         employee_name,
         content,
         comment
     )
 
     msg.attach(
-        MIMEText(html, "html")
+        MIMEText(html_body, "html")
     )
 
 
     try:
 
-        # Force IPv4 connection
-        smtp_ip = socket.gethostbyname(SMTP_HOST)
+        print("[EMAIL] Connecting to Gmail SMTP...")
 
 
-        with smtplib.SMTP(
-            smtp_ip,
+        # Gmail SSL connection
+        with smtplib.SMTP_SSL(
+            SMTP_HOST,
             SMTP_PORT,
-            timeout=20
+            timeout=60
         ) as server:
 
 
-            server.starttls()
+            print("[EMAIL] Logging into Gmail...")
 
 
             server.login(
                 settings.GMAIL_SMTP_EMAIL,
                 settings.GMAIL_SMTP_APP_PASSWORD
             )
+
+
+            print("[EMAIL] Sending email...")
 
 
             server.sendmail(
@@ -157,7 +162,7 @@ def send_decision_email(
 
         print(
             "[EMAIL] Gmail authentication failed. "
-            "Check email and app password."
+            "Check GMAIL_SMTP_EMAIL and GMAIL_SMTP_APP_PASSWORD"
         )
 
 
@@ -168,8 +173,8 @@ def send_decision_email(
         )
 
 
-    except OSError as e:
+    except Exception as e:
 
         print(
-            f"[EMAIL] SMTP connection failed: {e}"
+            f"[EMAIL] Email failed: {e}"
         )
