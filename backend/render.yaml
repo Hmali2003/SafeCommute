@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: safecommute-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: GMAIL_SMTP_EMAIL
+        sync: false
+      - key: GMAIL_SMTP_APP_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ENVIRONMENT
+        value: production
