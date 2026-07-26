@@ -13,9 +13,10 @@ class Settings(BaseSettings):
 
     # External APIs
     OPENWEATHER_API_KEY: str
-    # Gmail SMTP
-    GMAIL_SMTP_EMAIL: str
-    GMAIL_SMTP_APP_PASSWORD: str
+    GMAIL_CLIENT_ID: str
+    GMAIL_CLIENT_SECRET: str
+    GMAIL_REFRESH_TOKEN: str
+    GMAIL_SENDER_EMAIL: str
 
     # App
     FRONTEND_URL: str = "http://localhost:5173"

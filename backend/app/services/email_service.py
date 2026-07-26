@@ -1,14 +1,13 @@
-import smtplib
+import base64
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
 
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from googleapiclient.discovery import build
+
 from app.config import settings
-
-
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 465
-
 
 STATUS_CONTENT = {
     "approved": {
@@ -29,58 +28,36 @@ STATUS_CONTENT = {
 }
 
 
-def _build_html(
-    employee_name: str,
-    content: dict,
-    comment: Optional[str]
-) -> str:
-
-    comment_html = (
-        f"""
-        <p style="color:#475569;">
-            <em>Manager's note: "{comment}"</em>
-        </p>
-        """
-        if comment
-        else ""
-    )
-
+def _build_html(employee_name: str, content: dict, comment: Optional[str]) -> str:
+    comment_html = f'<p style="color:#475569;"><em>Manager\'s note: "{comment}"</em></p>' if comment else ""
     return f"""
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width:480px;
-        margin:auto;
-        padding:24px;
-    ">
-
-        <h2 style="color:#1d4ed8;">
-            SafeCommute
-        </h2>
-
-        <h3 style="color:#0f172a;">
-            {content["heading"]}
-        </h3>
-
-        <p style="color:#334155;">
-            Hi {employee_name},
-        </p>
-
-        <p style="color:#334155;">
-            {content["message"]}
-        </p>
-
-        {comment_html}
-
-        <p style="
-            color:#94a3b8;
-            font-size:12px;
-            margin-top:32px;
-        ">
-            This is an automated message from SafeCommute.
-        </p>
-
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #1d4ed8;">SafeCommute</h2>
+      <h3 style="color: #0f172a;">{content['heading']}</h3>
+      <p style="color: #334155;">Hi {employee_name},</p>
+      <p style="color: #334155;">{content['message']}</p>
+      {comment_html}
+      <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">This is an automated message from SafeCommute.</p>
     </div>
     """
+
+
+def _get_gmail_service():
+    """
+    Builds an authenticated Gmail API client using a long-lived refresh token,
+    so the app never needs a browser login step in production - the refresh
+    token was generated once, locally, via scripts/generate_gmail_token.py.
+    """
+    creds = Credentials(
+        token=None,
+        refresh_token=settings.GMAIL_REFRESH_TOKEN,
+        client_id=settings.GMAIL_CLIENT_ID,
+        client_secret=settings.GMAIL_CLIENT_SECRET,
+        token_uri="https://oauth2.googleapis.com/token",
+        scopes=["https://www.googleapis.com/auth/gmail.send"],
+    )
+    creds.refresh(GoogleAuthRequest())  # exchanges refresh token for a short-lived access token
+    return build("gmail", "v1", credentials=creds)
 
 
 def send_decision_email(
@@ -89,92 +66,35 @@ def send_decision_email(
     status: str,
     comment: Optional[str] = None,
 ):
+    """
+    Sends a real email from your Gmail account via the Gmail API (HTTPS),
+    instead of raw SMTP - this works on Render's free tier since it isn't
+    subject to the SMTP port block (25/465/587), only ordinary HTTPS traffic.
 
+    Signature is unchanged so manager_router.py needs no edits. Failures are
+    caught and logged, never raised - email delivery must never block or
+    roll back a manager's decision, which has already been committed to the
+    database by the time this is called.
+    """
     content = STATUS_CONTENT.get(status)
-
     if not content:
-        print(
-            f"[EMAIL] Unknown status '{status}', skipping email"
-        )
+        print(f"[EMAIL] Unknown status '{status}', skipping email")
         return
 
-
     msg = MIMEMultipart("alternative")
-
     msg["Subject"] = content["subject"]
-
-    msg["From"] = (
-        f"SafeCommute <{settings.GMAIL_SMTP_EMAIL}>"
-    )
-
+    msg["From"] = f"SafeCommute <{settings.GMAIL_SENDER_EMAIL}>"
     msg["To"] = to_email
+    msg.attach(MIMEText(_build_html(employee_name, content, comment), "html"))
 
-
-    html_body = _build_html(
-        employee_name,
-        content,
-        comment
-    )
-
-    msg.attach(
-        MIMEText(html_body, "html")
-    )
-
+    raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
     try:
-
-        print("[EMAIL] Connecting to Gmail SMTP...")
-
-
-        # Gmail SSL connection
-        with smtplib.SMTP_SSL(
-            SMTP_HOST,
-            SMTP_PORT,
-            timeout=60
-        ) as server:
-
-
-            print("[EMAIL] Logging into Gmail...")
-
-
-            server.login(
-                settings.GMAIL_SMTP_EMAIL,
-                settings.GMAIL_SMTP_APP_PASSWORD
-            )
-
-
-            print("[EMAIL] Sending email...")
-
-
-            server.sendmail(
-                settings.GMAIL_SMTP_EMAIL,
-                [to_email],
-                msg.as_string()
-            )
-
-
-        print(
-            f"[EMAIL] Sent successfully to {to_email}"
-        )
-
-
-    except smtplib.SMTPAuthenticationError:
-
-        print(
-            "[EMAIL] Gmail authentication failed. "
-            "Check GMAIL_SMTP_EMAIL and GMAIL_SMTP_APP_PASSWORD"
-        )
-
-
-    except smtplib.SMTPException as e:
-
-        print(
-            f"[EMAIL] SMTP error: {e}"
-        )
-
-
+        service = _get_gmail_service()
+        service.users().messages().send(
+            userId="me", body={"raw": raw_message}
+        ).execute()
+        print(f"[EMAIL] Sent '{content['subject']}' to {to_email}")
     except Exception as e:
-
-        print(
-            f"[EMAIL] Email failed: {e}"
-        )
+        # Covers HttpError from the Gmail API, refresh-token expiry, network issues, etc.
+        print(f"[EMAIL] Gmail API send failed: {e}")
