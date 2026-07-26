@@ -33,11 +33,6 @@ def health_check():
     return {"status": "healthy"}
 
 
-from app.routers import auth_router, employee_router
-
-app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
-app.include_router(employee_router.router, prefix="/api/employee", tags=["Employee"])
-
 from app.routers import auth_router, employee_router, manager_router
 
 app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
