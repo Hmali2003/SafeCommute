@@ -39,6 +39,14 @@ export default function ManagerDashboard() {
     approved: allRequests.filter((r) => r.status === 'approved').length,
     rejected: allRequests.filter((r) => r.status === 'rejected').length,
   };
+  function getGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+  }
+
 
   const visibleRequests = useMemo(() => {
     let result = [...allRequests];
@@ -75,7 +83,9 @@ export default function ManagerDashboard() {
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Welcome header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Good morning, Manager</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+  {getGreeting()}, Manager
+</h1>
           <p className="text-sm text-slate-500 mt-1">Review employee safety requests and make decisions quickly.</p>
         </div>
 
