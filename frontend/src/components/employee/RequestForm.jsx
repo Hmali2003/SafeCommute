@@ -16,7 +16,7 @@ export default function RequestForm({ onSuccess }) {
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const { location, error: geoError, loading: geoLoading, captureLocation, adjustLocation } = useGeolocation();
+  const { location, error: geoError, loading: geoLoading, captureLocation } = useGeolocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,46 +102,31 @@ export default function RequestForm({ onSuccess }) {
         </div>
 
         <div>
-  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
-    <span className="w-5 h-5 rounded bg-primary-50 text-primary-600 flex items-center justify-center text-[11px] font-bold">2</span>
-    Capture your location
-  </label>
-  <div className="flex items-center justify-between mb-2">
-    <p className="text-xs text-slate-500">Used to check conditions in your exact area.</p>
-    <button
-      type="button"
-      onClick={captureLocation}
-      disabled={geoLoading}
-      className="text-xs px-3 py-1.5 bg-primary-50 text-primary-700 font-medium rounded-lg hover:bg-primary-100 transition whitespace-nowrap"
-    >
-      {geoLoading ? 'Capturing…' : location ? 'Recapture' : 'Capture Location'}
-    </button>
-  </div>
-  {geoError && <p className="text-sm text-red-600 mb-2">{geoError}</p>}
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
+            <span className="w-5 h-5 rounded bg-primary-50 text-primary-600 flex items-center justify-center text-[11px] font-bold">2</span>
+            Capture your location
+          </label>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-slate-500">Used to check conditions in your exact area.</p>
+            <button
+              type="button"
+              onClick={captureLocation}
+              disabled={geoLoading}
+              className="text-xs px-3 py-1.5 bg-primary-50 text-primary-700 font-medium rounded-lg hover:bg-primary-100 transition whitespace-nowrap"
+            >
+              {geoLoading ? 'Capturing…' : location ? 'Recapture' : 'Capture Location'}
+            </button>
+          </div>
+          {geoError && <p className="text-sm text-red-600 mb-2">{geoError}</p>}
+          {location ? (
+            <MapView latitude={location.latitude} longitude={location.longitude} label="Your location" height="180px" />
+          ) : (
+            <div className="h-[180px] rounded-xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center text-sm text-slate-400">
+              No location captured yet
+            </div>
+          )}
+        </div>
 
-  {location?.accuracy > 500 && !location?.adjusted && (
-    <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mb-2">
-      ⚠ This location is only accurate to ~{Math.round(location.accuracy)}m — likely because you're on a
-      desktop without GPS. Drag the pin below to your exact spot if it looks wrong.
-    </p>
-  )}
-
-  {location ? (
-    <MapView
-      latitude={location.latitude}
-      longitude={location.longitude}
-      accuracy={location.accuracy}
-      label="Your location"
-      height="220px"
-      draggable
-      onLocationChange={adjustLocation}
-    />
-  ) : (
-    <div className="h-[180px] rounded-xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center text-sm text-slate-400">
-      No location captured yet
-    </div>
-  )}
-</div>
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
             <span className="w-5 h-5 rounded bg-primary-50 text-primary-600 flex items-center justify-center text-[11px] font-bold">3</span>

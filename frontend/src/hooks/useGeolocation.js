@@ -20,7 +20,6 @@ export function useGeolocation() {
         setLocation({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy, // meters - lets us warn the user if it's unreliable
           timestamp: new Date(position.timestamp).toISOString(),
         });
         setLoading(false);
@@ -33,9 +32,5 @@ export function useGeolocation() {
     );
   };
 
-  const adjustLocation = (latitude, longitude) => {
-    setLocation((prev) => ({ ...prev, latitude, longitude, accuracy: 0, adjusted: true }));
-  };
-
-  return { location, error, loading, captureLocation, adjustLocation };
+  return { location, error, loading, captureLocation };
 }
